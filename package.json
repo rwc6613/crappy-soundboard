@@ -1,0 +1,24 @@
+{
+  "name": "crappy-soundboard",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rwc6613/crappy-soundboard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/rwc6613/crappy-soundboard/issues"
+  },
+  "homepage": "https://github.com/rwc6613/crappy-soundboard#readme",
+  "devDependencies": {
+    "electron": "^42.4.0"
+  }
+}
