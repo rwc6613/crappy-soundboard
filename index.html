@@ -1,9 +1,76 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>Soundboard</title>
-  </head>
-  <body>
-    <h1>Soundboard testing: soundboard working!</h1>
-  </body>
+    <head>
+        <meta charset="UTF-8">
+        <title>Soundboard</title>
+    </head>
+    <body>
+        <h1>Soundboard - Audio Test</h1>
+
+        <label>Microphone Input:</label>
+        <select id="inputSelect"></select>
+
+        <br><br>
+
+        <label>Output Device (pick your Virtual Cable):</label>
+        <select id="outputSelect"></select>
+
+        <br><br>
+
+        <button id="startBtn">Start Passthrough</button>
+        <button id="stopBtn">Stop</button>
+
+        <br><br>
+
+        <label>Mic Volume: <input type="range" id="volSlider" min="0" max="2" step="0.01" value="1"></label>
+
+        <p id="status">Status: idle</p>
+
+        <script src="src/audio.js"></script>
+        <script>
+            const inputSelect = document.getElementById('inputSelect');
+            const outputSelect = document.getElementById('outputSelect');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const volSlider = document.getElementById('volSlider');
+            const status = document.getElementById('status');
+
+            // Populate device dropdowns on load
+            window.addEventListener('DOMContentLoaded', async () => {
+                const { inputs, outputs } = await audioEngine.getListOfAudioDevices();
+
+                inputs.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.deviceId;
+                opt.text = d.label || 'Microphone ' + d.deviceId;
+                inputSelect.appendChild(opt);
+                });
+
+                outputs.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.deviceId;
+                opt.text = d.label || 'Output ' + d.deviceId;
+                outputSelect.appendChild(opt);
+                });
+
+                status.textContent = 'Status: devices loaded';
+            });
+
+            startBtn.addEventListener('click', async () => {
+                const inputId = inputSelect.value;
+                const outputId = outputSelect.value;
+                await audioEngine.startAudioPassthrough(inputId, outputId);
+                status.textContent = 'Status: passthrough active';
+            });
+
+            stopBtn.addEventListener('click', async () => {
+                await audioEngine.stopProcesses();
+                status.textContent = 'Status: stopped';
+            });
+
+            volSlider.addEventListener('input', () => {
+                audioEngine.setMicVolume(parseFloat(volSlider.value));
+            });
+        </script>
+    </body>
 </html>

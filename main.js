@@ -1,16 +1,26 @@
-const { app, BrowserWindow } = require('electron');
+const {app, BrowserWindow, session} = require('electron');
 
 function createWindow() {
-  const win = new BrowserWindow({
-    width: 900,
-    height: 600,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
-    }
-  });
+    // handle permissions
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+        if (permission === 'media') {
+            callback(true); // grant permission for mic access 
+        } else {
+            callback(false);
+        }
+    });
 
-  win.loadFile('index.html');
+    // creating the app window
+    const win = new BrowserWindow({
+        width: 900,
+        height: 600,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        }
+    });
+
+    win.loadFile('index.html');
 }
 
 app.whenReady().then(createWindow);
