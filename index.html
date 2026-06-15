@@ -1,76 +1,569 @@
 <!DOCTYPE html>
-<html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Soundboard</title>
-    </head>
-    <body>
-        <h1>Soundboard - Audio Test</h1>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Soundboard</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        <label>Microphone Input:</label>
-        <select id="inputSelect"></select>
+        :root {
+            --bg-base:       #0d0d12;
+            --bg-surface:    #13131a;
+            --bg-raised:     #1a1a24;
+            --bg-hover:      #1f1f2e;
+            --accent:        #a78bfa;
+            --accent-dim:    rgba(167,139,250,0.15);
+            --accent-border: rgba(167,139,250,0.35);
+            --border:        rgba(255,255,255,0.07);
+            --text-primary:  rgba(255,255,255,0.92);
+            --text-secondary:rgba(255,255,255,0.4);
+            --text-muted:    rgba(255,255,255,0.2);
+            --green:         #4ade80;
+            --red:           #f87171;
+            --sidebar-width: 48px;
+        }
 
-        <br><br>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            user-select: none;
+        }
 
-        <label>Output Device (pick your Virtual Cable):</label>
-        <select id="outputSelect"></select>
+        /* ── Sidebar ── */
+        #sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-base);
+            border-right: 0.5px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 12px 0;
+            gap: 4px;
+            flex-shrink: 0;
+        }
 
-        <br><br>
+        .sidebar-logo {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: var(--accent-dim);
+            border: 0.5px solid var(--accent-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
 
-        <button id="startBtn">Start Passthrough</button>
-        <button id="stopBtn">Stop</button>
+        .sidebar-logo svg { width: 14px; height: 14px; fill: var(--accent); }
 
-        <br><br>
+        .nav-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 17px;
+            transition: background 0.15s, color 0.15s;
+            position: relative;
+        }
 
-        <label>Mic Volume: <input type="range" id="volSlider" min="0" max="2" step="0.01" value="1"></label>
+        .nav-btn:hover { background: var(--bg-raised); color: var(--text-primary); }
 
-        <p id="status">Status: idle</p>
+        .nav-btn.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
 
-        <script src="src/audio.js"></script>
-        <script>
-            const inputSelect = document.getElementById('inputSelect');
-            const outputSelect = document.getElementById('outputSelect');
-            const startBtn = document.getElementById('startBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            const volSlider = document.getElementById('volSlider');
-            const status = document.getElementById('status');
+        .nav-btn .tooltip {
+            position: absolute;
+            left: calc(100% + 10px);
+            background: var(--bg-raised);
+            border: 0.5px solid var(--border);
+            color: var(--text-primary);
+            font-size: 11px;
+            padding: 4px 8px;
+            border-radius: 5px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s;
+            z-index: 100;
+        }
 
-            // Populate device dropdowns on load
-            window.addEventListener('DOMContentLoaded', async () => {
-                const { inputs, outputs } = await audioEngine.getListOfAudioDevices();
+        .nav-btn:hover .tooltip { opacity: 1; }
 
-                inputs.forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d.deviceId;
-                opt.text = d.label || 'Microphone ' + d.deviceId;
-                inputSelect.appendChild(opt);
-                });
+        .nav-spacer { flex: 1; }
 
-                outputs.forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d.deviceId;
-                opt.text = d.label || 'Output ' + d.deviceId;
-                outputSelect.appendChild(opt);
-                });
+        /* ── Main area ── */
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-                status.textContent = 'Status: devices loaded';
-            });
+        /* ── Topbar ── */
+        #topbar {
+            height: 42px;
+            border-bottom: 0.5px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 10px;
+            flex-shrink: 0;
+            -webkit-app-region: drag;
+        }
 
-            startBtn.addEventListener('click', async () => {
-                const inputId = inputSelect.value;
-                const outputId = outputSelect.value;
-                await audioEngine.startAudioPassthrough(inputId, outputId);
-                status.textContent = 'Status: passthrough active';
-            });
+        #topbar * { -webkit-app-region: no-drag; }
 
-            stopBtn.addEventListener('click', async () => {
-                await audioEngine.stopProcesses();
-                status.textContent = 'Status: stopped';
-            });
+        #view-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            flex: 1;
+        }
 
-            volSlider.addEventListener('input', () => {
-                audioEngine.setMicVolume(parseFloat(volSlider.value));
-            });
-        </script>
-    </body>
+        #status-badge {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            color: var(--text-muted);
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 0.5px solid var(--border);
+        }
+
+        #status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: background 0.3s;
+        }
+
+        #status-badge.live { color: var(--green); border-color: rgba(74,222,128,0.3); }
+        #status-badge.live #status-dot { background: var(--green); }
+
+        /* ── Views ── */
+        .view { display: none; flex: 1; overflow: hidden; }
+        .view.active { display: flex; flex-direction: column; }
+
+        /* ── Soundboard view ── */
+        #view-soundboard { padding: 14px; gap: 12px; }
+
+        #search-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-raised);
+            border: 0.5px solid var(--border);
+            border-radius: 8px;
+            padding: 0 12px;
+            height: 34px;
+            flex-shrink: 0;
+        }
+
+        #search-bar svg { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
+
+        #search-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 12px;
+            flex: 1;
+        }
+
+        #search-input::placeholder { color: var(--text-muted); }
+
+        #pad-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 8px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        #pad-grid::-webkit-scrollbar { width: 4px; }
+        #pad-grid::-webkit-scrollbar-track { background: transparent; }
+        #pad-grid::-webkit-scrollbar-thumb { background: var(--bg-raised); border-radius: 2px; }
+
+        .pad {
+            aspect-ratio: 1;
+            background: var(--bg-raised);
+            border: 0.5px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 8px;
+            transition: background 0.1s, border-color 0.1s, color 0.1s;
+            word-break: break-word;
+            line-height: 1.3;
+        }
+
+        .pad:hover { background: var(--bg-hover); color: var(--text-primary); border-color: rgba(255,255,255,0.12); }
+
+        .pad.playing {
+            background: var(--accent-dim);
+            border-color: var(--accent-border);
+            color: var(--accent);
+        }
+
+        .pad svg { width: 18px; height: 18px; opacity: 0.5; }
+        .pad.playing svg { opacity: 1; }
+
+        #no-sounds {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 13px;
+            padding: 3rem 0;
+            display: none;
+        }
+
+        /* ── Mixer view ── */
+        #view-mixer {
+            padding: 20px;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .mixer-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .mixer-section-title {
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            padding-bottom: 6px;
+            border-bottom: 0.5px solid var(--border);
+        }
+
+        .mixer-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .mixer-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            width: 80px;
+            flex-shrink: 0;
+        }
+
+        .mixer-slider {
+            appearance: none;
+            -webkit-appearance: none;
+            flex: 1;
+            height: 3px;
+            border-radius: 2px;
+            background: var(--bg-raised);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .mixer-slider::-webkit-slider-thumb {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            border: 2px solid var(--bg-surface);
+        }
+
+        .mixer-value {
+            font-size: 11px;
+            color: var(--text-muted);
+            width: 36px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ── Settings view ── */
+        #view-settings {
+            padding: 20px;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .settings-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .settings-section-title {
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            padding-bottom: 6px;
+            border-bottom: 0.5px solid var(--border);
+        }
+
+        .settings-row {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .settings-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .settings-select {
+            background: var(--bg-raised);
+            border: 0.5px solid var(--border);
+            border-radius: 7px;
+            color: var(--text-primary);
+            font-size: 12px;
+            padding: 7px 10px;
+            outline: none;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .settings-select:focus { border-color: var(--accent-border); }
+
+        .settings-path-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .settings-path-input {
+            flex: 1;
+            background: var(--bg-raised);
+            border: 0.5px solid var(--border);
+            border-radius: 7px;
+            color: var(--text-primary);
+            font-size: 12px;
+            padding: 7px 10px;
+            outline: none;
+        }
+
+        .settings-path-input:focus { border-color: var(--accent-border); }
+        .settings-path-input::placeholder { color: var(--text-muted); }
+
+        .btn {
+            background: var(--bg-raised);
+            border: 0.5px solid var(--border);
+            border-radius: 7px;
+            color: var(--text-primary);
+            font-size: 12px;
+            padding: 7px 14px;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+            white-space: nowrap;
+        }
+
+        .btn:hover { background: var(--bg-hover); border-color: rgba(255,255,255,0.12); }
+
+        .btn-accent {
+            background: var(--accent-dim);
+            border-color: var(--accent-border);
+            color: var(--accent);
+        }
+
+        .btn-accent:hover { background: rgba(167,139,250,0.22); }
+
+        .btn-danger {
+            border-color: rgba(248,113,113,0.3);
+            color: var(--red);
+        }
+
+        .btn-danger:hover { background: rgba(248,113,113,0.1); }
+
+        .passthrough-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<nav id="sidebar">
+    <div class="sidebar-logo">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="4" cy="8" r="2.5"/>
+            <circle cx="12" cy="5" r="2.5"/>
+            <circle cx="12" cy="11" r="2.5"/>
+        </svg>
+    </div>
+
+    <button class="nav-btn active" data-view="soundboard" title="">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        <span class="tooltip">Soundboard</span>
+    </button>
+
+    <button class="nav-btn" data-view="mixer" title="">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+            <circle cx="8" cy="6" r="2" fill="currentColor" stroke="none"/>
+            <circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/>
+            <circle cx="10" cy="18" r="2" fill="currentColor" stroke="none"/>
+        </svg>
+        <span class="tooltip">Mixer / EQ</span>
+    </button>
+
+    <div class="nav-spacer"></div>
+
+    <button class="nav-btn" data-view="settings" title="">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span class="tooltip">Settings</span>
+    </button>
+</nav>
+
+<!-- Main -->
+<div id="main">
+
+    <!-- Topbar -->
+    <div id="topbar">
+        <span id="view-title">Soundboard</span>
+        <div id="status-badge">
+            <div id="status-dot"></div>
+            <span id="status-text">Idle</span>
+        </div>
+    </div>
+
+    <!-- Soundboard view -->
+    <div class="view active" id="view-soundboard">
+        <div id="search-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input id="search-input" type="text" placeholder="Search sounds...">
+        </div>
+        <div id="pad-grid">
+            <div id="no-sounds">No sounds found.<br>Set your sounds folder in Settings.</div>
+        </div>
+    </div>
+
+    <!-- Mixer / EQ view -->
+    <div class="view" id="view-mixer">
+
+        <div class="mixer-section">
+            <div class="mixer-section-title">Volume</div>
+            <div class="mixer-row">
+                <div class="mixer-label">Mic gain</div>
+                <input class="mixer-slider" type="range" id="sliderVolume" min="0" max="4" step="0.01" value="1">
+                <div class="mixer-value" id="valVolume">1.00</div>
+            </div>
+        </div>
+
+        <div class="mixer-section">
+            <div class="mixer-section-title">Compressor</div>
+            <div class="mixer-row">
+                <div class="mixer-label">Threshold</div>
+                <input class="mixer-slider" type="range" id="sliderThreshold" min="-60" max="0" step="1" value="-18">
+                <div class="mixer-value" id="valThreshold">-18 dB</div>
+            </div>
+            <div class="mixer-row">
+                <div class="mixer-label">Ratio</div>
+                <input class="mixer-slider" type="range" id="sliderRatio" min="1" max="20" step="0.5" value="4">
+                <div class="mixer-value" id="valRatio">4:1</div>
+            </div>
+        </div>
+
+        <div class="mixer-section">
+            <div class="mixer-section-title">EQ</div>
+            <div class="mixer-row">
+                <div class="mixer-label">High pass</div>
+                <input class="mixer-slider" type="range" id="sliderHPF" min="20" max="500" step="1" value="80">
+                <div class="mixer-value" id="valHPF">80 Hz</div>
+            </div>
+            <div class="mixer-row">
+                <div class="mixer-label">Low mid</div>
+                <input class="mixer-slider" type="range" id="sliderLowMid" min="-12" max="12" step="0.5" value="-3">
+                <div class="mixer-value" id="valLowMid">-3 dB</div>
+            </div>
+            <div class="mixer-row">
+                <div class="mixer-label">Presence</div>
+                <input class="mixer-slider" type="range" id="sliderPresence" min="-12" max="12" step="0.5" value="3">
+                <div class="mixer-value" id="valPresence">+3 dB</div>
+            </div>
+            <div class="mixer-row">
+                <div class="mixer-label">High shelf</div>
+                <input class="mixer-slider" type="range" id="sliderHighShelf" min="-12" max="12" step="0.5" value="2">
+                <div class="mixer-value" id="valHighShelf">+2 dB</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Settings view -->
+    <div class="view" id="view-settings">
+
+        <div class="settings-section">
+            <div class="settings-section-title">Audio devices</div>
+            <div class="settings-row">
+                <div class="settings-label">Microphone input</div>
+                <select class="settings-select" id="inputSelect"></select>
+            </div>
+            <div class="settings-row">
+                <div class="settings-label">Output device</div>
+                <select class="settings-select" id="outputSelect"></select>
+            </div>
+            <div class="passthrough-row">
+                <button class="btn btn-accent" id="startBtn">Start passthrough</button>
+                <button class="btn btn-danger" id="stopBtn">Stop</button>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-section-title">Sounds folder</div>
+            <div class="settings-row">
+                <div class="settings-label">Folder path</div>
+                <div class="settings-path-row">
+                    <input class="settings-path-input" type="text" id="folderPath" placeholder="e.g. C:\Users\you\sounds">
+                    <button class="btn" id="browseFolderBtn">Browse</button>
+                    <button class="btn btn-accent" id="loadFolderBtn">Load</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+
+</body>
 </html>

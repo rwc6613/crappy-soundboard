@@ -20,5 +20,8 @@
   "homepage": "https://github.com/rwc6613/crappy-soundboard#readme",
   "devDependencies": {
     "electron": "^42.4.0"
+  },
+  "dependencies": {
+    "@electron/remote": "^2.1.3"
   }
 }

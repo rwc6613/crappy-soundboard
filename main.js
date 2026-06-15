@@ -1,4 +1,7 @@
 const {app, BrowserWindow, session} = require('electron');
+const remote = require('@electron/remote/main');
+
+remote.initialize(); // remote module
 
 function createWindow() {
     // handle permissions
@@ -19,6 +22,8 @@ function createWindow() {
             contextIsolation: false
         }
     });
+
+    remote.enable(win.webContents);
 
     win.loadFile('index.html');
 }
