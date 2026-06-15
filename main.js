@@ -1,7 +1,8 @@
-const {app, BrowserWindow, session} = require('electron');
+const {app, BrowserWindow, session, Menu} = require('electron');
 const remote = require('@electron/remote/main');
 
 remote.initialize(); // remote module
+Menu.setApplicationMenu(null); // remove "File", "Edit", etc. from the top of the application
 
 function createWindow() {
     // handle permissions

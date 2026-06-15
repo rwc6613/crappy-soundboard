@@ -64,20 +64,20 @@ class AudioEngine {
     createCompressor() {
         const compressor = this.audioContext.createDynamicsCompressor();
         
-        // the threshold we'll use for audio is -18dB, before the compression kicks in
-        compressor.threshold.value = -18;
+        // the threshold we'll use for audio is -10dB, before the compression kicks in
+        compressor.threshold.value = -10;
 
         // knee, which controls how gradually the compressor applies gain reduction as the input level exceeds the threshold
-        compressor.knee.value = 10;
+        compressor.knee.value = 20;
 
         // ratio of compression, 4:1 means for every 4dB above the threshold, the output will only increase by 1dB
-        compressor.ratio.value = 4;
+        compressor.ratio.value = 2;
 
         // attack, which is how quickly the compressor responds to audio that exceeds the threshold, we'll set this to 5ms for now
-        compressor.attack.value = 0.005;
+        compressor.attack.value = 0.02;
 
         // release, which is how quickly the compression lets go after the signal drops (we'll use like 200ms)
-        compressor.release.value = 0.2;
+        compressor.release.value = 0.3;
 
         return compressor;
     }
@@ -198,15 +198,15 @@ class AudioEngine {
     createSoundboardChain() {
         // boost the gain, cranking up the volume
         const soundGain = this.audioContext.createGain();
-        soundGain.gain.value = this.soundboardVolume ?? 1.5;
+        soundGain.gain.value = this.soundboardVolume ?? 1.2;
 
         // limiter, which is the hard ceiling so audio never goes too crazy
         const limiter = this.audioContext.createDynamicsCompressor();
-        limiter.threshold.value = -6 // ceiling is at -3dB
-        limiter.knee.value = 0;
+        limiter.threshold.value = -3 // ceiling is at -3dB
+        limiter.knee.value = 3;
         limiter.ratio.value = 20;
-        limiter.attack.value = 0.001;
-        limiter.release.value = 0.1;
+        limiter.attack.value = 0.003;
+        limiter.release.value = 0.15;
 
         // chain the gain -> limiter
         soundGain.connect(limiter);
@@ -241,7 +241,7 @@ class AudioEngine {
         // also route to local audio so we hear it on our speakers as well
         const localAudio = new Audio();
         localAudio.src = fileURL;
-        localAudio.volume = 1.0;
+        localAudio.volume = 0.7;
         localAudio.play();
 
 
