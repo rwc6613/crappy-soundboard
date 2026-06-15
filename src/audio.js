@@ -194,6 +194,26 @@ class AudioEngine {
         if (this.compressor) this.compressor.ratio.value = value;
     }
 
+    // creating soundboard audio chiain
+    createSoundboardChain() {
+        // boost the gain, cranking up the volume
+        const soundGain = this.audioContext.createGain();
+        soundGain.gain.value = this.soundboardVolume ?? 1.5;
+
+        // limiter, which is the hard ceiling so audio never goes too crazy
+        const limiter = this.audioContext.createDynamicsCompressor();
+        limiter.threshold.value = -6 // ceiling is at -3dB
+        limiter.knee.value = 0;
+        limiter.ratio.value = 20;
+        limiter.attack.value = 0.001;
+        limiter.release.value = 0.1;
+
+        // chain the gain -> limiter
+        soundGain.connect(limiter);
+
+        return {soundGain, limiter}
+    }
+
     // play sound file through same stream as mic passthrough
     async playSound(filePath) {
         if (!this.audioContext || !this.destination) {
@@ -207,11 +227,15 @@ class AudioEngine {
         const response = await fetch(fileURL);
         const arrayBuffer = await response.arrayBuffer();
         const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+
+        // building a new limiter chain for the soundboard audio
+        const {soundGain, limiter} = this.createSoundboardChain();
         
         // create a buffer source, then we link it to the audio graph via connect
         const sourceForVirtualCable = this.audioContext.createBufferSource();
         sourceForVirtualCable.buffer = audioBuffer;
-        sourceForVirtualCable.connect(this.EQBands.highpass);
+        sourceForVirtualCable.connect(soundGain);
+        limiter.connect(this.destination);
         sourceForVirtualCable.start();
 
         // also route to local audio so we hear it on our speakers as well
